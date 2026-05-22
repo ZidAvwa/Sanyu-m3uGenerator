@@ -5,6 +5,6 @@ __pycache__/
 # Ignore local playlists generated during testing
 playlists/
 Playlists/
-
+Test1/
 # Ignore local environment file snapshots if any
 .env

@@ -14,8 +14,7 @@ def write_m3u(file_path, tracks):
         for track in tracks:
             f.write(f"{track}\n")
 
-def run_playlist_generator(music_dir, sort_by="artist"):
-    # FIX: Playlists are now saved directly INSIDE your music folder for universal phone compatibility
+def run_playlist_generator(music_dir, sort_by="artist", backend="local"):
     output_dir = os.path.join(music_dir, "Playlists")
     os.makedirs(output_dir, exist_ok=True)
     
@@ -28,7 +27,6 @@ def run_playlist_generator(music_dir, sort_by="artist"):
     print(" [1/3] Scanning directory for audio files...")
     all_files = []
     for root, _, files in os.walk(music_dir):
-        # Prevent the script from scanning its own generated playlist folder recursively
         if "Playlists" in root:
             continue
         for file in files:
@@ -37,7 +35,7 @@ def run_playlist_generator(music_dir, sort_by="artist"):
                 
     total_songs = len(all_files)
     print(f" Found {total_songs} songs to process.\n")
-    print(f" [2/3] Processing tracks (Sorting by: {sort_by})...")
+    print(f" [2/3] Processing tracks via engine backend: [{backend}] (Sorting by: {sort_by})...")
     print("-" * 70)
 
     for index, (root_dir, filename) in enumerate(all_files, start=1):
@@ -46,12 +44,10 @@ def run_playlist_generator(music_dir, sort_by="artist"):
         
         print(f" [{index}/{total_songs}] Processing: {filename}...")
         
-        assigned_value = get_gemini_classification(artist, title, mode=sort_by)
+        # Passes the backend parameter to the classifier function
+        assigned_value = get_gemini_classification(artist, title, mode=sort_by, backend=backend)
         assigned_value = assigned_value.replace('"', '').replace("'", "").strip()
         
-        # FIX: We use relative path references so both Android and Windows can read it
-        # If your music is flat in one folder, this becomes just the filename.
-        # If you have subfolders, it computes the universal relative jump step.
         relative_path = os.path.relpath(full_path, start=output_dir)
         
         if assigned_value.upper() == "UNKNOWN" or not assigned_value:
@@ -79,7 +75,8 @@ def run_playlist_generator(music_dir, sort_by="artist"):
                 print(f"  -> Genre: {assigned_value}")
                 playlists[assigned_value].append(relative_path)
                 
-        time.sleep(0.1)
+        # If running on cloud Groq, maintain pacing delay. Local needs no safety buffer.
+        time.sleep(0.1 if backend == "groq" else 0.01)
 
     print("-" * 70)
     print(" [3/3] Saving universal .m3u playlist files to disk...")
@@ -97,10 +94,15 @@ def run_playlist_generator(music_dir, sort_by="artist"):
         write_m3u(os.path.join(output_dir, "UNKNOWN_TRACKS.m3u"), unknown_playlist)
         print(f" Saved UNKNOWN_TRACKS.m3u with {len(unknown_playlist)} tracks.")
 
-    print(f"\n Done! Playlists generated natively inside your music directory.")
+    print(f"\n Done! Playlists generated via [{backend}] engine.")
 
 if __name__ == "__main__":
     TARGET_MUSIC_FOLDER = r"E:\Music" 
     SORTING_MODE = "artist"  
     
-    run_playlist_generator(TARGET_MUSIC_FOLDER, sort_by=SORTING_MODE)
+    # CHOOSE YOUR ENGINE HERE:
+    # Set to "local" to use your GTX 1650 (Ollama llama3.2)
+    # Set to "groq" to use Groq API Cloud (llama-3.3-70b-versatile)
+    CHOSEN_BACKEND = "local"
+    
+    run_playlist_generator(TARGET_MUSIC_FOLDER, sort_by=SORTING_MODE, backend=CHOSEN_BACKEND)
