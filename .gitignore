@@ -1,0 +1,10 @@
+# Ignore local python cache files
+__pycache__/
+*.pyc
+
+# Ignore local playlists generated during testing
+playlists/
+Playlists/
+
+# Ignore local environment file snapshots if any
+.env
